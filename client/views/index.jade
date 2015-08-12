@@ -1,0 +1,18 @@
+doctype html
+html(lang="en")
+  head
+    title MST - The odd way
+    script(src='/js/jquery.min.js').
+    script(src='/js/js.cookie.js').
+    script(type='text/javascript').
+      function submit(formid){
+        document.getElementById(formid).submit()
+      }
+  body
+    h1 Try harder
+    #container.col
+      a#mstdn(href='http://tracuunnt.gdt.gov.vn/tcnnt/mstdn.jsp', target='_blank') Open this link
+      form#info(method='post')
+        input#captcha(type='text', name='captcha', placeholder='captcha value')
+        input#cookies(type='text', name='cookies', placeholder='cookies string')
+        input#submit(type='submit', value='submit', action='submit(info)')
