@@ -59,8 +59,8 @@ app.get('/mst/:mst', function(req, res){
   };
   
   //result
-  var mst, ten, diachi, ghichu, ketqua
-  var json = {mst: "", ten: "", diachi: "", ghichu: "", ketqua:""};
+  var mst, ten, diachi, trangthai, ketqua
+  var json = {mst: "", ten: "", diachi: "", trangthai: "", ketqua:""};
   
   //open a browser to get cookie and capcha first
   request(options, function(error, response, body){
@@ -79,8 +79,8 @@ app.get('/mst/:mst', function(req, res){
         json.ten = ten;
         diachi = $(info[2]).find('a').attr('title').slice(16);
         json.diachi = diachi;
-        ghichu = $(info[5]).find('a').text();
-        json.ghichu = ghichu;
+        trangthai = $(info[5]).find('a').attr('alt');
+        json.trangthai = trangthai;
       }
       
     } else {
