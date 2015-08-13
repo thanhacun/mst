@@ -45,6 +45,7 @@ app.get('/mst/captcha/:uid', function(req, res){
 
 })
 
+var count = 0;
 app.get('/mst/:mst', function(req, res){
   //variables
   var homepage = 'http://tracuunnt.gdt.gov.vn';
@@ -59,41 +60,56 @@ app.get('/mst/:mst', function(req, res){
   };
   
   //result
-  var mst, ten, diachi, trangthai, ketqua
-  var json = {mst: "", ten: "", diachi: "", trangthai: "", ketqua:""};
+  var mst, ten, diachi, thanhpho, quan, phuong,  trangthai, ketqua;
+  var json = {mst: "", ten: "", diachi: "", thanhpho: "", quan: "", phuong: "", trangthai: "", ketqua:""};
   
   //open a browser to get cookie and capcha first
   request(options, function(error, response, body){
-    $ = cheerio.load(body);
-    //make sure ta_border exists
-    console.log($('.ta_border').length);
-    if ($('.ta_border').length > 0){//captcha correct
-      console.log("Captcha and cookies OK");
-      ketqua = true;
-      json.ketqua = ketqua;
-      if ($('.ta_border').find('tr').length > 2) {//having result
-        var info = $('.ta_border tr').eq(1).find('td');
-        mst = $(info[1]).find('a').text();
-        json.mst = mst;
-        ten = $(info[2]).find('a').text();
-        json.ten = ten;
-        diachi = $(info[2]).find('a').attr('title').slice(16);
-        json.diachi = diachi;
-        trangthai = $(info[5]).find('a').attr('alt');
-        json.trangthai = trangthai;
+    if(!error && response.statusCode === 200){
+       $ = cheerio.load(body);
+      //make sure ta_border exists
+      if ($('.ta_border').length > 0){//captcha correct
+        console.log("Captcha and cookies OK: ", count++);
+        ketqua = true;
+        json.ketqua = ketqua;
+        if ($('.ta_border').find('tr').length > 2) {//having result
+          var info = $('.ta_border tr').eq(1).find('td');
+          mst = $(info[1]).find('a').text();
+          json.mst = mst;
+          ten = $(info[2]).find('a').text();
+          json.ten = ten;
+          diachi = $(info[2]).find('a').attr('title').slice(16);
+          json.diachi = diachi;
+          trangthai = $(info[5]).find('a').attr('alt');
+          json.trangthai = trangthai;
+          //getting address detail
+          //by request with id
+          request({uri: url + '?action=action&id=' + mst}, function(error, response, body){
+            //console.log(response.statusCode);
+            if(!error && response.statusCode === 200){
+              $ = cheerio.load(body);
+              thanhpho = $('.ta_border').find('tr').eq(4).find('td').eq(1).text();
+              json.thanhpho = thanhpho;
+              quan = $('.ta_border').find('tr').eq(5).find('td').eq(1).text();
+              json.quan = quan;
+              phuong = $('.ta_border').find('tr').eq(6).find('td').eq(1).text();
+              json.phuong = phuong;
+              res.json(json);
+            }
+          });
+        }
+      } else {
+        console.log('Should resubmit captcha and cookies');
+        ketqua = false;
+        json.captcha_url = ketqua;
+        res.json(json);
       }
-      
-    } else {
-      console.log('Should resubmit captcha and cookies');
-      ketqua = false;
-      json.captcha_url = ketqua;
+      //res.json(json);     
     }
-    res.json(json);
-  })
-})
+  });
+});
 
-
-app.listen(process.env.PORT || '8081');
+app.listen(process.env.PORT || '8080');
 
 console.log('Helpers supporting getting data from TCT');
 
