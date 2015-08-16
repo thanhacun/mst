@@ -1,9 +1,8 @@
 var express = require('express');
 var bodyParser = require('body-parser');
-var fs = require("fs");
 var request = require('request');
 var cheerio = require('cheerio');
-var tesseract = require('node-tesseract');
+var mst = require('./tcmst.js');
 
 var app = express();
 app.set('views', __dirname + '/client/views');
@@ -16,6 +15,16 @@ app.use(bodyParser.urlencoded({extended: false}));
 var captcha;
 var cookies;
 
+//using phantom and phantomjs
+app.get('/tc/:mst', function(req, res){
+  //because cracking captcha is not always correct
+  //TODO will try a few times
+  console.log('Total queries:', count++);
+  mst.tcmst(req.params.mst, function(data){
+    res.json(data);
+  });
+});
+
 app.route('/mst')
   .get(function(req, res){
     res.render('index');
@@ -24,26 +33,9 @@ app.route('/mst')
     captcha = req.body.captcha;
     cookies = req.body.cookies || cookies;
     console.log('Getting capcha and cookies');
-    res.render('index')
-  })
-
-
-app.get('/mst/captcha/:uid', function(req, res){
-  var url = 'http://tracuunnt.gdt.gov.vn/tcnnt/captcha.png?uid=' + req.params.uid;
-  //save captcha image to local folder
-  request(url).pipe(fs.createWriteStream(__dirname + '/captcha.png')).on('finish', function(){
-    //Wait until file created
-    tesseract.process(__dirname + '/captcha.png',{'psm':7}, function(err, text){
-        if(err){
-            console.error(err);
-        } else {
-            //console.log(text);
-            res.send(text);
-        }
-    })
+    res.render('index');
   });
 
-})
 
 var count = 0;
 app.get('/mst/:mst', function(req, res){
@@ -69,7 +61,6 @@ app.get('/mst/:mst', function(req, res){
        $ = cheerio.load(body);
       //make sure ta_border exists
       if ($('.ta_border').length > 0){//captcha correct
-        console.log("Captcha and cookies OK: ", count++);
         ketqua = true;
         json.ketqua = ketqua;
         if ($('.ta_border').find('tr').length > 2) {//having result
@@ -95,11 +86,12 @@ app.get('/mst/:mst', function(req, res){
               phuong = $('.ta_border').find('tr').eq(6).find('td').eq(1).text();
               json.phuong = phuong;
               res.json(json);
+              console.log(mst, count++, response.statusCode);
             }
           });
         }
       } else {
-        console.log('Should resubmit captcha and cookies');
+        console.log('Resubmit captcha and cookies');
         ketqua = false;
         json.captcha_url = ketqua;
         res.json(json);
