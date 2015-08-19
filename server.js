@@ -3,6 +3,7 @@ var bodyParser = require('body-parser');
 var request = require('request');
 var cheerio = require('cheerio');
 var mst = require('./tcmst.js');
+var ocr = require('./ocr.js');
 
 var app = express();
 app.set('views', __dirname + '/client/views');
@@ -16,12 +17,23 @@ var captcha;
 var cookies;
 
 //using phantom and phantomjs
-app.get('/tc/:mst', function(req, res){
+app.get('/TODO/:mst', function(req, res){
   //because cracking captcha is not always correct
   //TODO will try a few times
   console.log('Total queries:', count++);
   mst.tcmst(req.params.mst, function(data){
     res.json(data);
+    if (data.captcha){
+      console.log(data);
+    }
+    //res.end();
+  });
+});
+
+app.get('/captcha/:uid', function(req, res){
+  var captcha_url = 'http://tracuunnt.gdt.gov.vn/tcnnt/captcha.png?uid=' + req.params.uid;
+  ocr.crack(captcha_url, function(captcha){
+    res.jsonp({'captcha': captcha});
   });
 });
 
@@ -29,6 +41,7 @@ app.route('/mst')
   .get(function(req, res){
     res.render('index');
   })
+  //TODO: using phantomjs to get cookies and captcha
   .post(function(req,res){
     captcha = req.body.captcha;
     cookies = req.body.cookies || cookies;

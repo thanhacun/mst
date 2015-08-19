@@ -1,17 +1,19 @@
 {
   "name": "tcmsn",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "A helper service to scrap information from tct, overpassing captcha",
   "main": "server.js",
   "repository": "",
   "author": "THCN <thanhacun@gmail.com>",
   "dependencies": {
     "async": "latest",
-    "express": "latest",
-    "socket.io": "latest",
     "cheerio": "latest",
+    "express": "latest",
+    "nightmare": "^1.8.2",
+    "node-tesseract": "latest",
+    "okrabyte": "^0.1.1",
     "request": "latest",
-    "node-tesseract": "latest"
+    "socket.io": "latest"
   },
   "devDependencies": {
     "zombie": "^4.0.13"
