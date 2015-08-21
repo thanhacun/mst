@@ -3,10 +3,9 @@ var bodyParser = require('body-parser');
 var request = require('request');
 var cheerio = require('cheerio');
 var phantom = require('phantom');
-//var mst = require('./tcmst.js');
+var tracuu = require('./tcmst.js');
 var ocr = require('./ocr.js');
 //var cook_capt = require('./cookie.js');
-
 
 var app = express();
 app.set('views', __dirname + '/client/views');
@@ -20,23 +19,11 @@ var homepage = 'http://tracuunnt.gdt.gov.vn';
 var url = 'http://tracuunnt.gdt.gov.vn/tcnnt/mstdn.jsp';
 var captcha;
 var cookies;
-var capt_correct = true;
-var tick = 0;
-var pageLoading = false;
 var count = 0;
 
 var cook_capt = function(){
     phantom.create(function(ph){
        ph.createPage(function(page){
-            //page settings
-            page.set('onLoadStarted', function(){
-              console.log('Loading...');
-              pageLoading = true;
-            });
-            page.set('onLoadFinished', function(){
-              console.log('Finised.');
-              pageLoading = false;
-            });
             //helper functions
             //get captcha
             function get_capt(){
@@ -46,17 +33,21 @@ var cook_capt = function(){
                   ocr.crack(homepage + captcha_url, function(text){
                     captcha = text;
                     console.log(captcha, homepage + captcha_url);
-                    capt_correct = true;
                     ph.exit();
                   });
                 });
             }
             page.open(url, function(status){
                 page.get('cookies', function(cookies_obj){
-                    cookies = cookies_obj[0].name + '=' + cookies_obj[0].value + '; ' + cookies_obj[1].name + '=' + cookies_obj[1].value;
+                    cookies = cookies_obj
+                                .map(function(cookie){
+                                  return cookie.name + '=' + cookie.value;
+                                })
+                                .join('; ');
+                    console.log(cookies);
+                    //cookies = cookies_obj[0].name + '=' + cookies_obj[0].value + '; ' + cookies_obj[1].name + '=' + cookies_obj[1].value;
                 });
                 get_capt();
-                //TODO: make sure captcha correct
                 });
             });
        });  
@@ -71,17 +62,18 @@ app.get('/captcha/:uid', function(req, res){
   });
 });
 
+/*
 app.route('/mst')
   .get(function(req, res){
     res.render('index');
   })
-  //TODO: using phantomjs to get cookies and captcha
   .post(function(req,res){
     captcha = req.body.captcha;
     cookies = req.body.cookies || cookies;
     console.log('Getting capcha and cookies');
     res.render('index');
   });
+*/
 
 app.get('/mst/:mst', function(req, res){
   //variables
@@ -96,10 +88,8 @@ app.get('/mst/:mst', function(req, res){
   };
   
   //result
-  //var mst, ten, diachi, thanhpho, quan, phuong,  trangthai, ketqua;
   var json = {mst: "", ten: "", diachi: "", thanhpho: "", quan: "", phuong: "", trangthai: "", ketqua:false, captcha:false};
   
-  //open a browser to get cookie and capcha first
   request(options, function(error, response, body){
     if(!error && response.statusCode === 200){
        $ = cheerio.load(body);
@@ -115,7 +105,7 @@ app.get('/mst/:mst', function(req, res){
           json.trangthai = $(info[5]).find('a').attr('alt');
           //getting address detail
           //by request with id
-          request({uri: url + '?action=action&id=' + mst}, function(error, response, body){
+          request({uri: url + '?action=action&id=' + json.mst}, function(error, response, body){
             //console.log(response.statusCode);
             if(!error && response.statusCode === 200){
               $ = cheerio.load(body);
@@ -123,19 +113,36 @@ app.get('/mst/:mst', function(req, res){
               json.quan = $('.ta_border').find('tr').eq(5).find('td').eq(1).text();
               json.phuong = $('.ta_border').find('tr').eq(6).find('td').eq(1).text();
               res.jsonp(json);
-              console.log(mst, count++, response.statusCode);
+              console.log(mst, count++, ' OK');
             }
           });
+        } else {
+          //no result
+          res.jsonp(json);
+          console.log(mst, count++, ' no result');
         }
       } else {
         console.log('Resubmit captcha and cookies');
-        cook_capt();
+        if (!json.captcha){
+          cook_capt();
+        }
         res.jsonp(json);
+        console.log(mst, count++, ' captcha err');
       }
+    } else {
+      //connection error
+      res.jsonp(json);
+      console.log(mst, count++, ' conn err');
     }
   });
 });
 
+app.get('/tracuu/:mst', function(req, res){
+  tracuu.tcmst(req.params.mst, function(data){
+    res.jsonp(data);
+    console.log(req.params.mst, count ++, data.ketqua);
+  });
+});
 app.listen(process.env.PORT || '8080');
 
 console.log('Helpers supporting getting data from TCT');

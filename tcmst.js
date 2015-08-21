@@ -1,118 +1,163 @@
 (function(){
+    /*
+    - Inspired by the idea from http://solvedstack.com/questions/how-to-submit-a-form-using-phantomjs
+    to minimize using timeout which is very not correct to determine time a page load. Basically, using
+    loadInProgress variable to determine which is time to run a function defined in steps array
+    - In order to trigger page.on events, should not evaluate a click in webpage, instead use something 
+    like changing document.location.href
+    */
     //for using as module
     var internal = {};
     exports.tcmst = internal.tcmst = function(mst, callback){
-    
-    /////main logic here/////
+    //////main logic here//////
     var phantom = require('phantom');
-    //module cracking simple captcha
-    //var ocr = require('./ocr.js');
+    var ocr = require('./ocr.js');
 
     var homepage = 'http://tracuunnt.gdt.gov.vn';
     var url = 'http://tracuunnt.gdt.gov.vn/tcnnt/mstdn.jsp';
-    //var captcha;
+    var result = {mst: "", ten: "", diachi: "", thanhpho: "", quan: "", phuong: "", trangthai: "", ketqua:false, captcha:false};
+    var captcha;
+    var loadInProgress = false;
     phantom.create(function(ph){
-       ph.createPage(function(page){
-          //TODO: not working
-          //page.set('settings.loadImages', false);
-          
-          //get status information
-          page.set('onResourceReceived', function(res){
-             console.log(res.id);
-          });
-          var start = new Date().getTime();
-          page.open(url, function(status){
-              if (status !== 'success'){
-                  console.log('Connection Error');
-                  ph.exit();
-                  callback({mst: "", ten: "", diachi: "", thanhpho: "", quan: "", phuong: "", trangthai: "", ketqua:false, captcha:false});
-              } else {
-                  //get capcha_url
-                  page.evaluate(function(mst){
-                      var uid = $('img').eq(0).attr('src').split('?uid=')[1];
-                      console.log(uid);
-                      $.getJSON('http://mst-thanhacun-1.c9.io/captcha/' + uid + '?callback=?', function(data){
-                         console.log(data.captcha);
-                         $('input[name="mst"]').val(mst);
-                         $('input#captcha').val(data.captcha);
-                         ///////////NEED TIME FOR THIS INFORMATIOIN////////////
-                         $('.subBtn').click();
-                      });
-                  }, function(){}, mst);
-                  
-                  setTimeout(function(){
-                      //scrap result
-                      page.evaluate(function(){
-                         //page.evaluate does not response to click on <a> elm and may by some of other
-                         //need to init a mouse event and dispatch it to the elm
-                         //http://stackoverflow.com/questions/15739263/phantomjs-click-an-element
-                         function click(el){
-                            var ev = document.createEvent("MouseEvent");
-                            ev.initMouseEvent("click", true /* bubble */, true /* cancelable */, window, null,
-                                0, 0, 0, 0, /* coordinates */ false, false, false, false, /* modifier keys */ 0 /*left*/, null
-                            );
-                            el.dispatchEvent(ev);
-                            }
-                        //preparing data to return
-                        var data = {mst: "", ten: "", diachi: "", thanhpho: "", quan: "", phuong: "", trangthai: "", ketqua:false, captcha:false};
+        ph.createPage(function(page){
+            //page settings
+            page.set('onLoadStarted', function(){
+               loadInProgress = true;
+            });
+            page.set('onLoadFinished', function(){
+                loadInProgress= false;
+            });
+            
+            //helper functions
+            var stepindex = 0;
+            
+            var query_mst = function(){
+                console.log('querying info...');
+                var query = {'mst':mst, 'captcha':captcha};
+                page.evaluate(function(query){
+                   window.location.href = 'http://tracuunnt.gdt.gov.vn/tcnnt/mstdn.jsp?action=action&mst=' + query.mst + '&captcha=' + query.captcha;
+                }, function(){}, query);
+            };
+            
+            var company_info = function(){
+                console.log('getting company info...');
+                page.evaluate(function(result){
+                    //preparing data to return, data is exist only inside evaluate
+                    //var data = {mst: "", ten: "", diachi: "", thanhpho: "", quan: "", phuong: "", trangthai: "", ketqua:false, captcha:false};
+                    if ($('.ta_border').length > 0){
+                        //correct captcha
+                        result.captcha = true;
+                    } else {
                         //wrong captcha
-                        if ($('p').eq(0).text().slice(0,3) !== 'Vui'){
-                            data.captcha = true;
-                        } 
-                        
-                        if ($('.ta_border tr').length > 2){
-                             var info = $('.ta_border tr').eq(1).find('td');
-                            //correct captcha and mst
-                            data.ketqua = true;
-                            data.mst = $(info[1]).find('a').text();
-                            data.ten = $(info[2]).find('a').text();
-                            data.diachi = $(info[2]).find('a').attr('title').slice(16);
-                            data.trangthai = $(info[5]).find('a').attr('alt');
-                            //follow company link to get detail address infomation
-                            //////////NEED TIME FOR THIS ACTION////////////
-                            click($(info[2]).find('a')[0]);
-                         } else {
-                            //wrong mst
-                            data.ketqua = false;
-                         }
-                         return data;
-                     }, function(data){
-                         //continue evaluate to get detail address information
-                         if (data.ketqua){
-                             //delay 1 seconds to load information
-                             setTimeout(function(){
-                                 page.evaluate(function(data){
-                                    data.thanhpho = $('.ta_border tr').eq(4).find('td').eq(1).text();
-                                    data.quan = $('.ta_border tr').eq(5).find('td').eq(1).text();
-                                    data.phuong = $('.ta_border tr').eq(6).find('td').eq(1).text();
-                                    return data;
-                                 }, function(data){
-                                     ph.exit();
-                                     var end = new Date().getTime();
-                                     console.log('Time to query:', end - start);
-                                     callback(data);
-                                 }, data);                                 
-                             }, 1000);                                 
-                         } else {
-                             ph.exit();
-                             console.log('Either wrong captcha or wrong mst');
-                             var end = new Date().getTime();
-                             console.log('Time to query:', end - start);
-                             callback(data);
-                         }
-                     });
-                  }, 1500);
-              }
-          });
-       });
+                        return result;
+                    }
+                    
+                    if ($('.ta_border tr').length > 2){
+                         var info = $('.ta_border tr').eq(1).find('td');
+                        //correct captcha and mst
+                        result.ketqua = true;
+                        result.mst = $(info[1]).find('a').text();
+                        result.ten = $(info[2]).find('a').text();
+                        result.diachi = $(info[2]).find('a').attr('title').slice(16);
+                        result.trangthai = $(info[5]).find('a').attr('alt');
+                        //TODO return result will be delay
+                        window.location.href = 'http://tracuunnt.gdt.gov.vn/tcnnt/mstdn.jsp?action=action&id=' + result.mst;
+                        return result;
+                     } else {
+                        //no result
+                        //result.ketqua = false;
+                        return result;
+                     }
+                }, function(data){
+                    result = data;
+                    if (!result.captcha) {
+                        console.log('Wrong captcha');
+                        //skip next steps
+                        stepindex = steps.length;
+                    } else {
+                        if (!result.ketqua){
+                            console.log('Wrong mst');
+                            //skip next step
+                            stepindex ++;
+                        }
+                    }
+                }, result);
+            };
+            
+            var address_info = function(){
+                console.log('getting address info...');
+                page.evaluate(function(result){
+                    result.thanhpho = $('.ta_border tr').eq(4).find('td').eq(1).text();
+                    result.quan = $('.ta_border tr').eq(5).find('td').eq(1).text();
+                    result.phuong = $('.ta_border tr').eq(6).find('td').eq(1).text();
+                    document.location.href = 'http://tracuunnt.gdt.gov.vn/tcnnt/mstdn.jsp';
+                    return result;
+                }, function(data){
+                    result = data;
+                }, result);
+            };
+            
+            var finalize = function(){
+                console.log('finalizing...');
+                page.render('tcmst.png', function(){
+                    //a trick to keep step 3 can return data
+                });
+            };
+            
+            var steps = [query_mst, company_info, address_info, finalize];
+            
+            //init page
+            page.open(url, function(status){
+                if (status !== 'success'){
+                    console.log('Connection error');
+                    ph.exit();
+                    callback(result);
+                } else {
+                    //getting captcha
+                    page.evaluate(function(){
+                       console.log('Cracking captcha...');
+                       return $('img').attr('src');
+                    }, function(captcha_url){
+                       ocr.crack(homepage + captcha_url, function(text){
+                          if (text){
+                              //captcha seem OK
+                              captcha = text;
+                              console.log(captcha, '\t', homepage + captcha_url);
+                              var interval = setInterval(function(){
+                                  if (!loadInProgress  && stepindex < steps.length){
+                                      //time to run function in steps
+                                      console.log("============================");
+                                      console.log("Running step ", stepindex + 1);
+                                      steps[stepindex]();
+                                      //console.log(result);
+                                      stepindex ++;
+                                  }
+                                  if (!loadInProgress && stepindex === steps.length){
+                                      //time to stop
+                                      clearInterval(interval);
+                                      ph.exit();
+                                      callback(result);
+                                  }
+                              }, 50);
+                          } else {
+                              //captcha not good, try again
+                              console.log('Captcha not good');
+                              ph.exit();
+                              callback(result);
+                          }
+                       });
+                    });
+                }
+            });
+        });
     });
-    };
     
-    //for running directly from script
+    };//end phantom function
+    //////running directly from script//////
     if (!module.parent){
-        internal.tcmst(process.argv[2], function(data){
+        internal.tcmst(process.argv[2], function(ketqua){
             console.log('Standalone mode');
-            console.log(data);
+            console.log('\n', ketqua);
         });
     }
 })();
