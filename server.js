@@ -5,7 +5,6 @@ var cheerio = require('cheerio');
 var phantom = require('phantom');
 var tracuu = require('./tcmst.js');
 var ocr = require('./ocr.js');
-//var cook_capt = require('./cookie.js');
 
 var app = express();
 app.set('views', __dirname + '/client/views');
@@ -38,6 +37,7 @@ var cook_capt = function(){
                 });
             }
             page.open(url, function(status){
+              if (status === 'success') {
                 page.get('cookies', function(cookies_obj){
                     cookies = cookies_obj
                                 .map(function(cookie){
@@ -45,11 +45,15 @@ var cook_capt = function(){
                                 })
                                 .join('; ');
                     console.log(cookies);
-                    //cookies = cookies_obj[0].name + '=' + cookies_obj[0].value + '; ' + cookies_obj[1].name + '=' + cookies_obj[1].value;
+                    get_capt();
                 });
-                get_capt();
-                });
+                //get_capt();
+                
+              } else {
+                console.log('conn err');
+              }
             });
+          });
        });  
 };
 
