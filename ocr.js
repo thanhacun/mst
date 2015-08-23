@@ -10,7 +10,7 @@
       request(captcha_url).pipe(fs.createWriteStream(__dirname + '/captcha.png')).on('finish', function(){
          tesseract.process(__dirname + '/captcha.png', {'psm':7}, function(err, text){
              if(err){
-                 callback(false);
+                 callback('');
              } else {
                  callback(text.toLowerCase().slice(0,5));
              }

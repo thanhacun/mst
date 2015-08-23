@@ -5,6 +5,7 @@ var cheerio = require('cheerio');
 var phantom = require('phantom');
 var tracuu = require('./tcmst.js');
 var ocr = require('./ocr.js');
+var cook = require('./cookies.js');
 
 var app = express();
 app.set('views', __dirname + '/client/views');
@@ -14,51 +15,38 @@ app.use(express.static(__dirname + '/client'));
 app.use(bodyParser.urlencoded({extended: false}));
 
 //global variables
-var homepage = 'http://tracuunnt.gdt.gov.vn';
+//var homepage = 'http://tracuunnt.gdt.gov.vn';
 var url = 'http://tracuunnt.gdt.gov.vn/tcnnt/mstdn.jsp';
 var captcha;
 var cookies;
 var count = 0;
+var getCookCapt = true; //to keep run when start
+var timeToReGet = 6000000; //1 hours
 
-var cook_capt = function(){
-    phantom.create(function(ph){
-       ph.createPage(function(page){
-            //helper functions
-            //get captcha
-            function get_capt(){
-              page.evaluate(function(){
-                return $('img').attr('src');
-              }, function(captcha_url){
-                  ocr.crack(homepage + captcha_url, function(text){
-                    captcha = text;
-                    console.log(captcha, homepage + captcha_url);
-                    ph.exit();
-                  });
-                });
-            }
-            page.open(url, function(status){
-              if (status === 'success') {
-                page.get('cookies', function(cookies_obj){
-                    cookies = cookies_obj
-                                .map(function(cookie){
-                                  return cookie.name + '=' + cookie.value;
-                                })
-                                .join('; ');
-                    console.log(cookies);
-                    get_capt();
-                });
-                //get_capt();
-                
-              } else {
-                console.log('conn err');
-              }
-            });
-          });
-       });  
-};
+function cook_capt() {
+  cook.cookies(function(capt, cook, time) {
+    captcha = capt;
+    cookies = cook;
+    console.log ('===========================================');
+    console.log ('It took', time, 'to get captcha and cookies');
+    console.log ('Now, it should be READY to serve');
+  });  
+}
 
-cook_capt();
+//keep updating cookies and captcha every timeToReGet
+setInterval(function() {
+  getCookCapt = true;
+}, timeToReGet);
 
+//getting cookie and captcha by listening getCookCapt flag
+setInterval(function() {
+  if (getCookCapt) {
+    getCookCapt = false;
+    cook_capt();
+  }
+}, 50);
+
+//services
 app.get('/captcha/:uid', function(req, res){
   var captcha_url = 'http://tracuunnt.gdt.gov.vn/tcnnt/captcha.png?uid=' + req.params.uid;
   ocr.crack(captcha_url, function(captcha){
@@ -83,15 +71,9 @@ app.get('/mst/:mst', function(req, res){
   //variables
   var mst = req.params.mst;
   var query = '?action=action&mst=' + mst + '&captcha=';
-  var options = {
-    uri: url + query + captcha,
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.130 Safari/537.36',
-      'Cookie': cookies
-    }
-  };
+  var options = {uri: url + query + captcha, headers: {'Cookie': cookies} };
   
-  //result
+  //json result
   var json = {mst: "", ten: "", diachi: "", thanhpho: "", quan: "", phuong: "", trangthai: "", ketqua:false, captcha:false};
   
   request(options, function(error, response, body){
@@ -128,7 +110,7 @@ app.get('/mst/:mst', function(req, res){
       } else {
         console.log('Resubmit captcha and cookies');
         if (!json.captcha){
-          cook_capt();
+          getCookCapt = true;
         }
         res.jsonp(json);
         console.log(mst, count++, ' captcha err');
@@ -147,8 +129,9 @@ app.get('/tracuu/:mst', function(req, res){
     console.log(req.params.mst, count ++, data.ketqua);
   });
 });
-app.listen(process.env.PORT || '8080');
 
+app.listen(process.env.PORT || '8080');
+console.log('========================================');
 console.log('Helpers supporting getting data from TCT');
 
 exports = module.exports = app;
