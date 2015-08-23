@@ -2,9 +2,9 @@ var express = require('express');
 var bodyParser = require('body-parser');
 var request = require('request');
 var cheerio = require('cheerio');
-var phantom = require('phantom');
+//var phantom = require('phantom');
 var tracuu = require('./tcmst.js');
-var ocr = require('./ocr.js');
+//var ocr = require('./ocr.js');
 var cook = require('./cookies.js');
 
 var app = express();
@@ -23,12 +23,13 @@ var count = 0;
 var getCookCapt = true; //to keep run when start
 var timeToReGet = 6000000; //1 hours
 
-function cook_capt() {
+function cook_capt(callback) {
   cook.cookies(function(capt, cook, time) {
     captcha = capt;
     cookies = cook;
-    console.log ('===========================================');
-    console.log ('It took', time, 'to get captcha and cookies');
+    console.log (captcha, cookies);
+    console.log ('=======================================================');
+    console.log ('It took', time, 'miliseconds to get captcha and cookies');
     console.log ('Now, it should be READY to serve');
   });  
 }
@@ -41,18 +42,20 @@ setInterval(function() {
 //getting cookie and captcha by listening getCookCapt flag
 setInterval(function() {
   if (getCookCapt) {
-    getCookCapt = false;
-    cook_capt();
+      getCookCapt = false;
+      cook_capt();
   }
 }, 50);
 
 //services
+/*
 app.get('/captcha/:uid', function(req, res){
   var captcha_url = 'http://tracuunnt.gdt.gov.vn/tcnnt/captcha.png?uid=' + req.params.uid;
   ocr.crack(captcha_url, function(captcha){
     res.jsonp({'captcha': captcha});
   });
 });
+*/
 
 /*
 app.route('/mst')
@@ -80,7 +83,8 @@ app.get('/mst/:mst', function(req, res){
     if(!error && response.statusCode === 200){
        $ = cheerio.load(body);
       //make sure ta_border exists
-      if ($('.ta_border').length > 0){//captcha correct
+      if ($('.ta_border').length > 0){
+        //captcha correct
         json.captcha = true;
         if ($('.ta_border').find('tr').length > 2) {//having result
           json.ketqua = true;
@@ -108,10 +112,7 @@ app.get('/mst/:mst', function(req, res){
           console.log(mst, count++, ' no result');
         }
       } else {
-        console.log('Resubmit captcha and cookies');
-        if (!json.captcha){
-          getCookCapt = true;
-        }
+        getCookCapt = true;
         res.jsonp(json);
         console.log(mst, count++, ' captcha err');
       }
@@ -129,6 +130,14 @@ app.get('/tracuu/:mst', function(req, res){
     console.log(req.params.mst, count ++, data.ketqua);
   });
 });
+
+/*
+app.get('/again', function(req, res) {
+  //captcha = '';
+  getCookCapt = true;
+  res.end('Turned on getCookCapt flag to force update captcha and cookies. Good luck!');
+});
+*/
 
 app.listen(process.env.PORT || '8080');
 console.log('========================================');
