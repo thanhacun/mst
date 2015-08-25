@@ -7,9 +7,12 @@
   "author": "THCN <thanhacun@gmail.com>",
   "dependencies": {
     "async": "latest",
+    "body-parser": "^1.13.3",
     "cheerio": "latest",
     "express": "latest",
     "node-tesseract": "latest",
+    "phantom": "^0.7.2",
+    "phantomjs": "^1.9.18",
     "request": "latest",
     "socket.io": "latest"
   },
