@@ -113,18 +113,18 @@ app.get('/mst/:mst', function(req, res){
               json.thanhpho = $('.ta_border').find('tr').eq(4).find('td').eq(1).text();
               json.quan = $('.ta_border').find('tr').eq(5).find('td').eq(1).text();
               json.phuong = $('.ta_border').find('tr').eq(6).find('td').eq(1).text();
-              res.jsonp(json);
+              res.status(200).jsonp(json);
               console.log(mst, count++, ' OK');
             }
           });
         } else {
           //no result
-          res.jsonp(json);
+          res.status(200).jsonp(json);
           console.log(mst, count++, ' no result');
         }
       } else {
         getCookCapt = true;
-        res.jsonp(json);
+        res.status(200).jsonp(json);
         console.log(mst, count++, ' captcha err');
       }
     } else {
