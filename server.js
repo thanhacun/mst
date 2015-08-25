@@ -21,7 +21,7 @@ var captcha;
 var cookies;
 var count = 0;
 var getCookCapt = true; //to keep run when start
-var timeToReGet = 1500000; //30 minutes
+var timeToReGet = 1500000; //15 minutes
 
 function cook_capt(callback) {
   cook.cookies(function(capt, cook, time) {
@@ -82,9 +82,9 @@ app.route('/mst')
 */
 
 app.get('/mst/:mst', function(req, res){
-  console.log('Received request...');
   //variables
   var mst = req.params.mst;
+  console.log('Received request for', mst);
   var query = '?action=action&mst=' + mst + '&captcha=';
   var options = {uri: url + query + captcha, headers: {'Cookie': cookies} };
   
@@ -92,13 +92,13 @@ app.get('/mst/:mst', function(req, res){
   var json = {mst: "", ten: "", diachi: "", thanhpho: "", quan: "", phuong: "", trangthai: "", ketqua:false, captcha:false};
   
   request(options, function(error, response, body){
-  console.log('Start requesting...');
+  console.log('Getting company status');
     if(!error && response.statusCode === 200){
        $ = cheerio.load(body);
       //make sure ta_border exists
       if ($('.ta_border').length > 0){
         //captcha correct
-        console.log('captcha OK');
+        console.log('> captcha OK');
         json.captcha = true;
         if ($('.ta_border').find('tr').length > 2) {//having result
           json.ketqua = true;
@@ -110,7 +110,7 @@ app.get('/mst/:mst', function(req, res){
           //getting address detail
           //by request with id
           request({uri: url + '?action=action&id=' + json.mst, headers: {'Cookie':cookies }}, function(error, response, body){
-            console.log('Next request');
+            console.log('Getting address detail');
             //console.log(response.statusCode);
             if(!error && response.statusCode === 200){
               $ = cheerio.load(body);

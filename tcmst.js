@@ -18,6 +18,10 @@
     var result = {mst: "", ten: "", diachi: "", thanhpho: "", quan: "", phuong: "", trangthai: "", ketqua:false, captcha:false};
     var captcha;
     var loadInProgress = false;
+    var pageLoop;
+    var pageOpen = false;
+    var tick0 = 0;
+    var tick1 = 0;
     phantom.create(function(ph){
         ph.createPage(function(page){
             //page settings
@@ -42,8 +46,6 @@
             var company_info = function(){
                 console.log('getting company info...');
                 page.evaluate(function(result){
-                    //preparing data to return, data is exist only inside evaluate
-                    //var data = {mst: "", ten: "", diachi: "", thanhpho: "", quan: "", phuong: "", trangthai: "", ketqua:false, captcha:false};
                     if ($('.ta_border').length > 0){
                         //correct captcha
                         result.captcha = true;
@@ -65,7 +67,6 @@
                         return result;
                      } else {
                         //no result
-                        //result.ketqua = false;
                         return result;
                      }
                 }, function(data){
@@ -100,55 +101,81 @@
             var finalize = function(){
                 console.log('finalizing...');
                 page.render('tcmst.png', function(){
-                    //a trick to keep step 3 can return data
+                    //a trick to keep step 3 return data
                 });
             };
             
             var steps = [query_mst, company_info, address_info, finalize];
             
-            //init page
-            page.open(url, function(status){
-                if (status !== 'success'){
-                    console.log('Connection error');
-                    ph.exit();
-                    callback(result);
-                } else {
-                    //getting captcha
-                    page.evaluate(function(){
-                       console.log('Cracking captcha...');
-                       return $('img').attr('src');
-                    }, function(captcha_url){
-                       ocr.crack(homepage + captcha_url, function(text){
-                          if (text){
-                              //captcha seem OK
-                              captcha = text;
-                              console.log(captcha, '\t', homepage + captcha_url);
-                              var interval = setInterval(function(){
-                                  if (!loadInProgress  && stepindex < steps.length){
-                                      //time to run function in steps
-                                      console.log("============================");
-                                      console.log("Running step ", stepindex + 1);
-                                      steps[stepindex]();
-                                      //console.log(result);
-                                      stepindex ++;
-                                  }
-                                  if (!loadInProgress && stepindex === steps.length){
-                                      //time to stop
-                                      clearInterval(interval);
+            //repeating openning page until get correct result: result.ketqua = true
+            //need check result.ketqua and need a flag of pageOpen
+            pageLoop = setInterval(function() {
+                tick0 ++;
+                if (!pageOpen) {
+                    pageOpen = true;
+                    page.open(url, function(status){
+                        if (status !== 'success'){
+                            console.log('Connection error');
+                            ph.exit();
+                            clearInterval(pageLoop);
+                            callback(result);
+                        } else {
+                            //getting captcha
+                            page.evaluate(function(){
+                               console.log('Cracking captcha...');
+                               return $('img').attr('src');
+                            }, function(captcha_url){
+                               ocr.crack(homepage + captcha_url, function(text){
+                                  if (text){
+                                      //captcha seem OK
+                                      captcha = text;
+                                      console.log(captcha, '\t', homepage + captcha_url);
+                                      var interval = setInterval(function(){
+                                          tick1 ++;
+                                          if (!loadInProgress  && stepindex < steps.length){
+                                              //time to run function in steps
+                                              console.log("============================");
+                                              console.log("Running step ", stepindex + 1);
+                                              steps[stepindex]();
+                                              //console.log(result);
+                                              stepindex ++;
+                                          }
+                                          if (!loadInProgress && stepindex === steps.length){
+                                              clearInterval(interval);
+                                              if (result.captcha) {
+                                                  //captcha OK, time to stop
+                                                  //clearInterval(interval);
+                                                  clearInterval(pageLoop);
+                                                  ph.exit();
+                                                  console.log('Time elapse:', (tick0 + tick1) * 50, 'miliseconds');
+                                                  callback(result);
+                                              } else {
+                                                  //need to do again
+                                                  console.log('<<<<<Reopen>>>>>');
+                                                  stepindex = 0;
+                                                  pageOpen = false;
+                                              }
+                                              //clearInterval(interval);
+                                          }
+                                      }, 50);
+                                  } else {
+                                      //captcha not good, try again
+                                      console.log('Captcha not good');
+                                      console.log('<<<<<Reopen>>>>>');
                                       ph.exit();
-                                      callback(result);
+                                      stepindex = 0;
+                                      pageOpen  = false;
+                                      //callback(result);
                                   }
-                              }, 50);
-                          } else {
-                              //captcha not good, try again
-                              console.log('Captcha not good');
-                              ph.exit();
-                              callback(result);
-                          }
-                       });
+                               });
+                            });
+                        }
                     });
+                } else {
+                    //skip
                 }
-            });
+            }, 50);
+                    
         });
     });
     
