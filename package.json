@@ -9,9 +9,7 @@
     "async": "latest",
     "cheerio": "latest",
     "express": "latest",
-    "nightmare": "^1.8.2",
     "node-tesseract": "latest",
-    "okrabyte": "^0.1.1",
     "request": "latest",
     "socket.io": "latest"
   },

@@ -21,22 +21,33 @@ var captcha;
 var cookies;
 var count = 0;
 var getCookCapt = true; //to keep run when start
-var timeToReGet = 6000000; //1 hours
+var timeToReGet = 1500000; //30 minutes
 
 function cook_capt(callback) {
   cook.cookies(function(capt, cook, time) {
     captcha = capt;
     cookies = cook;
     console.log (captcha, cookies);
-    console.log ('=======================================================');
     console.log ('It took', time, 'miliseconds to get captcha and cookies');
     console.log ('Now, it should be READY to serve');
+    console.log ('=======================================================');
   });  
 }
 
 //keep updating cookies and captcha every timeToReGet
 setInterval(function() {
-  getCookCapt = true;
+  var now = new Date();
+  //TODO: request to keep server awake and to update captcha and cookies
+  console.log(now.toLocaleString(), ': Send a ping');
+  request(url + '?action=action&mst=0100112846&captcha=' + captcha, function(error, response, body){
+    if (!error) {
+      console.log(response.statusCode);
+    } else {
+      console.log('Connection error, reget the captcha anyway');
+      getCookCapt = true;
+    }
+  });
+  //getCookCapt = true;
 }, timeToReGet);
 
 //getting cookie and captcha by listening getCookCapt flag
