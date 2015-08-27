@@ -20,7 +20,6 @@ var cookies;
 var count = 0;
 var getCookCapt = true; //to keep run when start
 var readyGet = false;
-//var timeToReGet = 900000; //15 minutes
 
 function cook_capt(callback) {
   cook.cookies(function(capt, cook, time) {
@@ -95,8 +94,9 @@ app.get('/mst/:mst', function(req, res){
         clearInterval(tryInterval);
         readyGet = true;
         var now = new Date();
-        //console.log ('It took', tryIntervalTick * 50 , 'miliseconds to get result');
-        console.log (now.toISOString(), '|', count ++, mst, msg, '| took', tryIntervalTick * 50, 'ms');
+        var timeSpend = tryIntervalTick * 50;
+        json.spend = timeSpend;
+        console.log (now.toISOString(), '|', count ++, mst, msg, '| took', timeSpend, 'ms');
         console.log ('=====================');
         res.status(statusCode).jsonp(json);
       }
