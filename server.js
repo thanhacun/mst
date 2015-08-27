@@ -2,9 +2,7 @@ var express = require('express');
 var bodyParser = require('body-parser');
 var request = require('request');
 var cheerio = require('cheerio');
-//var phantom = require('phantom');
 var tracuu = require('./tcmst.js');
-//var ocr = require('./ocr.js');
 var cook = require('./cookies.js');
 
 var app = express();
@@ -21,12 +19,14 @@ var captcha;
 var cookies;
 var count = 0;
 var getCookCapt = true; //to keep run when start
-var timeToReGet = 1500000; //15 minutes
+var readyGet = false;
+//var timeToReGet = 900000; //15 minutes
 
 function cook_capt(callback) {
   cook.cookies(function(capt, cook, time) {
     captcha = capt;
     cookies = cook;
+    readyGet = true;
     console.log (captcha, cookies);
     console.log ('It took', time, 'miliseconds to get captcha and cookies');
     console.log ('Now, it should be READY to serve');
@@ -35,6 +35,7 @@ function cook_capt(callback) {
 }
 
 //keep updating cookies and captcha every timeToReGet
+/*
 setInterval(function() {
   var now = new Date();
   //TODO: request to keep server awake and to update captcha and cookies
@@ -49,24 +50,17 @@ setInterval(function() {
   });
   //getCookCapt = true;
 }, timeToReGet);
+*/
 
 //getting cookie and captcha by listening getCookCapt flag
 setInterval(function() {
   if (getCookCapt) {
       getCookCapt = false;
+      //prevent getting info while captcha not available
+      //readyGet = false;
       cook_capt();
   }
 }, 50);
-
-//services
-/*
-app.get('/captcha/:uid', function(req, res){
-  var captcha_url = 'http://tracuunnt.gdt.gov.vn/tcnnt/captcha.png?uid=' + req.params.uid;
-  ocr.crack(captcha_url, function(captcha){
-    res.jsonp({'captcha': captcha});
-  });
-});
-*/
 
 /*
 app.route('/mst')
@@ -84,59 +78,80 @@ app.route('/mst')
 app.get('/mst/:mst', function(req, res){
   //variables
   var mst = req.params.mst;
-  console.log('Received request for', mst);
-  var query = '?action=action&mst=' + mst + '&captcha=';
-  var options = {uri: url + query + captcha, headers: {'Cookie': cookies} };
+  console.log('> Received request for', mst);
   
   //json result
   var json = {mst: "", ten: "", diachi: "", thanhpho: "", quan: "", phuong: "", trangthai: "", ketqua:false, captcha:false};
+  var tryInterval;
+  var tryIntervalTick = 0;
   
-  request(options, function(error, response, body){
-  console.log('Getting company status');
-    if(!error && response.statusCode === 200){
-       $ = cheerio.load(body);
-      //make sure ta_border exists
-      if ($('.ta_border').length > 0){
-        //captcha correct
-        console.log('> captcha OK');
-        json.captcha = true;
-        if ($('.ta_border').find('tr').length > 2) {//having result
-          json.ketqua = true;
-          var info = $('.ta_border tr').eq(1).find('td');
-          json.mst = $(info[1]).find('a').text();
-          json.ten = $(info[2]).find('a').text();
-          json.diachi = $(info[2]).find('a').attr('title').slice(16);
-          json.trangthai = $(info[5]).find('a').attr('alt');
-          //getting address detail
-          //by request with id
-          request({uri: url + '?action=action&id=' + json.mst, headers: {'Cookie':cookies }}, function(error, response, body){
-            console.log('Getting address detail');
-            //console.log(response.statusCode);
-            if(!error && response.statusCode === 200){
-              $ = cheerio.load(body);
-              json.thanhpho = $('.ta_border').find('tr').eq(4).find('td').eq(1).text();
-              json.quan = $('.ta_border').find('tr').eq(5).find('td').eq(1).text();
-              json.phuong = $('.ta_border').find('tr').eq(6).find('td').eq(1).text();
-              res.status(200).jsonp(json);
-              console.log(mst, count++, ' OK');
-            }
-          });
+  function get_info () {
+    var query = '?action=action&mst=' + mst + '&captcha=';
+    var options = {uri: url + query + captcha, headers: {'Cookie': cookies} };    
+    
+    request(options, function(error, response, body){
+
+      function send_res (statusCode, msg) {
+        clearInterval(tryInterval);
+        readyGet = true;
+        var now = new Date();
+        //console.log ('It took', tryIntervalTick * 50 , 'miliseconds to get result');
+        console.log (now.toISOString(), '|', count ++, mst, msg, '| took', tryIntervalTick * 50, 'ms');
+        console.log ('=====================');
+        res.status(statusCode).jsonp(json);
+      }
+
+      console.log('>> getting company status');
+      if(!error && response.statusCode === 200){
+         $ = cheerio.load(body);
+        //make sure ta_border exists
+        if ($('.ta_border').length > 0){
+          //captcha correct
+          console.log('>>> captcha OK');
+          json.captcha = true;
+          if ($('.ta_border').find('tr').length > 2) {//having result
+            json.ketqua = true;
+            var info = $('.ta_border tr').eq(1).find('td');
+            json.mst = $(info[1]).find('a').text();
+            json.ten = $(info[2]).find('a').text();
+            json.diachi = $(info[2]).find('a').attr('title').slice(16);
+            json.trangthai = $(info[5]).find('a').attr('alt');
+            
+            //getting address detail by request with id
+            request({uri: url + '?action=action&id=' + json.mst, headers: {'Cookie':cookies }}, function(error, response, body){
+              console.log('>>>> Getting address detail');
+              //console.log(response.statusCode);
+              if(!error && response.statusCode === 200){
+                $ = cheerio.load(body);
+                json.thanhpho = $('.ta_border').find('tr').eq(4).find('td').eq(1).text();
+                json.quan = $('.ta_border').find('tr').eq(5).find('td').eq(1).text();
+                json.phuong = $('.ta_border').find('tr').eq(6).find('td').eq(1).text();
+                send_res(200, 'OK');
+              }
+            });
+          } else {
+            //no result
+            send_res(200, 'no result');
+          }
         } else {
-          //no result
-          res.status(200).jsonp(json);
-          console.log(mst, count++, ' no result');
+          readyGet = false;
+          getCookCapt = true;
+          console.log('<<< captcha err: trying again >>>');
         }
       } else {
-        getCookCapt = true;
-        res.status(200).jsonp(json);
-        console.log(mst, count++, ' captcha err');
+        send_res(400, 'conn err');
       }
-    } else {
-      //connection error
-      res.jsonp(json);
-      console.log(mst, count++, ' conn err');
+    });
+  }
+  
+  tryInterval = setInterval(function() {
+    tryIntervalTick ++;
+    if (readyGet) {
+      readyGet = false;
+      get_info();
     }
-  });
+  }, 50);
+  
 });
 
 app.get('/tracuu/:mst', function(req, res){
@@ -145,14 +160,6 @@ app.get('/tracuu/:mst', function(req, res){
     console.log(req.params.mst, count ++, data.ketqua);
   });
 });
-
-/*
-app.get('/again', function(req, res) {
-  //captcha = '';
-  getCookCapt = true;
-  res.end('Turned on getCookCapt flag to force update captcha and cookies. Good luck!');
-});
-*/
 
 app.listen(process.env.PORT || '3880');
 console.log('========================================');

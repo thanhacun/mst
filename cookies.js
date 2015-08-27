@@ -23,6 +23,9 @@
         //Open headless browser
         phantom.create(function(ph){
            ph.createPage(function(page){
+               //page setings
+               page.set('settings.resourceTimeout', 6000);
+               
                //page events
                page.set('onLoadStarted', function(){
                    pageLoading = true;
@@ -30,7 +33,10 @@
                page.set('onLoadFinished', function(){
                    pageLoading = false;
                });
-               
+               page.set('onResourceTimeout', function() {
+                  console.log('timeout!');
+                  captChecking = false;
+               });
                //repeat open a page until captcha correct
                interval = setInterval(function() {
                    tick ++;
