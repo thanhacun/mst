@@ -73,16 +73,19 @@ app.route('/mst')
     res.render('index');
   });
 */
+app.get('/', function(req, res) {
+  res.status(200).send('<h2>Welcome to a better api for tracuumst</h2>');
+});
 
 app.get('/mst/:mst', function(req, res){
   //variables
   var mst = req.params.mst;
+  var startedTime = new Date();
   console.log('> Received request for', mst);
   
   //json result
   var json = {mst: "", ten: "", diachi: "", thanhpho: "", quan: "", phuong: "", trangthai: "", ketqua:false, captcha:false};
   var tryInterval;
-  var tryIntervalTick = 0;
   
   function get_info () {
     var query = '?action=action&mst=' + mst + '&captcha=';
@@ -93,10 +96,10 @@ app.get('/mst/:mst', function(req, res){
       function send_res (statusCode, msg) {
         clearInterval(tryInterval);
         readyGet = true;
-        var now = new Date();
-        var timeSpend = tryIntervalTick * 50;
+        var finishedTime = new Date();
+        var timeSpend = finishedTime - startedTime;
         json.spend = timeSpend;
-        console.log (now.toISOString(), '|', count ++, mst, msg, '| took', timeSpend, 'ms');
+        console.log (finishedTime.toISOString(), '|', count ++, mst, msg, '| took', timeSpend, 'ms');
         console.log ('=====================');
         res.status(statusCode).jsonp(json);
       }
@@ -145,7 +148,6 @@ app.get('/mst/:mst', function(req, res){
   }
   
   tryInterval = setInterval(function() {
-    tryIntervalTick ++;
     if (readyGet) {
       readyGet = false;
       get_info();

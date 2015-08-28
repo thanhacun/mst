@@ -15,14 +15,13 @@
 
     var homepage = 'http://tracuunnt.gdt.gov.vn';
     var url = 'http://tracuunnt.gdt.gov.vn/tcnnt/mstdn.jsp';
-    var result = {mst: "", ten: "", diachi: "", thanhpho: "", quan: "", phuong: "", trangthai: "", ketqua:false, captcha:false};
+    var result = {mst: "", ten: "", diachi: "", thanhpho: "", quan: "", phuong: "", trangthai: "", ketqua:false, captcha:false, spend:0};
     var captcha;
     var loadInProgress = false;
     var pageLoop;
     var pageOpen = false;
-    var tick0 = 0;
-    var tick1 = 0;
     phantom.create(function(ph){
+        var startedTime = new Date();
         ph.createPage(function(page){
             //page settings
             page.set('onLoadStarted', function(){
@@ -110,7 +109,6 @@
             //repeating openning page until get correct result: result.ketqua = true
             //need check result.ketqua and need a flag of pageOpen
             pageLoop = setInterval(function() {
-                tick0 ++;
                 if (!pageOpen) {
                     pageOpen = true;
                     page.open(url, function(status){
@@ -130,24 +128,24 @@
                                       //captcha seem OK
                                       captcha = text;
                                       console.log(captcha, '\t', homepage + captcha_url);
-                                      var interval = setInterval(function(){
-                                          tick1 ++;
+                                      var stepLoop = setInterval(function(){
                                           if (!loadInProgress  && stepindex < steps.length){
                                               //time to run function in steps
                                               console.log("============================");
                                               console.log("Running step ", stepindex + 1);
                                               steps[stepindex]();
-                                              //console.log(result);
                                               stepindex ++;
                                           }
                                           if (!loadInProgress && stepindex === steps.length){
-                                              clearInterval(interval);
+                                              clearInterval(stepLoop);
                                               if (result.captcha) {
                                                   //captcha OK, time to stop
                                                   //clearInterval(interval);
                                                   clearInterval(pageLoop);
                                                   ph.exit();
-                                                  console.log('Time elapse:', (tick0 + tick1) * 50, 'miliseconds');
+                                                  var finishedTime = new Date();
+                                                  result.spend = finishedTime - startedTime;
+                                                  console.log('Time elapse:', result.spend, 'miliseconds');
                                                   callback(result);
                                               } else {
                                                   //need to do again
@@ -165,7 +163,6 @@
                                       ph.exit();
                                       stepindex = 0;
                                       pageOpen  = false;
-                                      //callback(result);
                                   }
                                });
                             });
