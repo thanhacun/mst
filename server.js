@@ -81,7 +81,7 @@ app.get('/mst/:mst', function(req, res){
   //variables
   var mst = req.params.mst;
   var startedTime = new Date();
-  console.log('> Received request for', mst);
+  console.log('> Received request for', mst, 'from:', req.ip);
   
   //json result
   var json = {mst: "", ten: "", diachi: "", thanhpho: "", quan: "", phuong: "", trangthai: "", ketqua:false, captcha:false};

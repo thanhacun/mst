@@ -18,7 +18,7 @@
           });
         };
     
-    //Running standalone mode
+    //Running standalone
     if (!module.parent){
         internal.crack(process.argv[2], function(data){
             console.log('Stand alone mode:', data);
