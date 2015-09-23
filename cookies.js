@@ -7,6 +7,8 @@
         var ocr = require('./ocr.js');
         var request = require('request');
         var cheerio = require('cheerio');
+        var fs = require('fs');
+        var atob = require('atob');
         
         //common variables
         var homepage = 'http://tracuunnt.gdt.gov.vn';
@@ -73,21 +75,45 @@
                 }
                 
                 //crack captcha: return correct captcha or empty
+                //TODO: capture captcha but DONOT download because captcha will change
                 function get_capt () {
                     //turn on captChecking
                     console.log('Cracking captcha...');
                     captChecking = true;
                     page.evaluate(function() {
-                       return $('img').attr('src'); 
-                    }, function(captcha_url) {
-                        ocr.crack(homepage + captcha_url, function(text){
-                            if (!text) {
-                                //captcha = '';
-                                captChecking = false;
-                            } else {
-                                check_capt(text, console.log);
+                        //follow http://stackoverflow.com/questions/16716753/how-to-download-images-from-a-site-with-phantomjs
+                        /*
+                        function getImgDimensions($i) {
+                            return {
+                                top: $i.offset().top,
+                                left: $i.offset().left,
+                                width: $i.width(),
+                                height: $i.height()
                             }
+                        }
+                        return getImgDimensions($('img'));
+                        */
+                        var captchaDom = $('img')[0];
+                        var canvas = document.createElement('canvas');
+                        canvas.width = 130;
+                        canvas.height = 50;
+                        var ctx = canvas.getContext('2d');
+                        ctx.drawImage(captchaDom, 0, 0);
+                        return canvas.toDataURL('image/png').split(',')[1];
+                       //return $('img').attr('src');
+                    }, function(imgBase64) {
+
+                        fs.writeFile('captcha.png', atob(imgBase64), 'binary', function(){
+                            ocr.crack('captcha.png', function(text){
+                                if (!text) {
+                                    captChecking = false;
+                                } else {
+                                    console.log(text);
+                                    check_capt(text, console.log);
+                                }
+                            });
                         });
+
                     });
                 }
                 
