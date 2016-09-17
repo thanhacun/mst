@@ -40,7 +40,8 @@ app.get('/mst/:mst', function(req, res){
   };
   
   //json result
-  var json = {mst: "", ten: "", diachi: "", thanhpho: "", quan: "", phuong: "", trangthai: "", ketqua:false, captcha:false};
+  //var json = {mst: "", ten: "", diachi: "", thanhpho: "", quan: "", phuong: "", trangthai: "", ketqua:false, captcha:false};
+  var json = {mst: "", ten: "", diachi: "", thanhpho: "", quan: "", phuong: "", trangthai: "", thaydoi: "", dongmst: "", ketqua:false, captcha:false};
   
   //getting captcha and cookies
   if (!captcha) {
@@ -85,15 +86,21 @@ app.get('/mst/:mst', function(req, res){
             json.ten = $(info[2]).find('a').text();
             json.diachi = $(info[2]).find('a').attr('title').slice(16);
             json.trangthai = $(info[5]).find('a').attr('alt');
+            //short address
+            json.thaydoi = $(info[5]).find('a').text();
+            json.trangthai = $(info[6]).find('a').attr('alt');            
             
             //getting address detail by request with id
             request({uri: url + '?action=action&id=' + json.mst, headers: {'Cookie':cookies }}, function(error, response, body){
               console.log('>>>> Getting address detail');
               if(!error && response.statusCode === 200){
                 $ = cheerio.load(body);
-                json.thanhpho = $('.ta_border').find('tr').eq(4).find('td').eq(1).text();
-                json.quan = $('.ta_border').find('tr').eq(5).find('td').eq(1).text();
-                json.phuong = $('.ta_border').find('tr').eq(6).find('td').eq(1).text();
+                //json.thanhpho = $('.ta_border').find('tr').eq(4).find('td').eq(1).text();
+                //json.quan = $('.ta_border').find('tr').eq(5).find('td').eq(1).text();
+                //json.phuong = $('.ta_border').find('tr').eq(6).find('td').eq(1).text();
+                //full address
+                json.diachi = $('.ta_border').find('tr').eq(3).find('td').eq(0).text() || json.diachi;
+                json.dongmst = $('.ta_border').find('tr').eq(0).find('td').eq(2).text();                
                 send_res(200, 'OK');
               }
             });
