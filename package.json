@@ -15,7 +15,8 @@
     "phantom": "^0.7.2",
     "phantomjs": "^1.9.18",
     "request": "latest",
-    "socket.io": "latest"
+    "socket.io": "latest",
+    "jade": "latest"
   },
   "devDependencies": {
     "grunt-contrib-watch": "^0.6.1",
