@@ -2,90 +2,55 @@ var express = require('express');
 var bodyParser = require('body-parser');
 var request = require('request');
 var cheerio = require('cheerio');
-var tracuu = require('./tcmst.js');
-var cook = require('./cookies.js');
+var cook = require('./cookies_new.js');
 
 var app = express();
 app.set('views', __dirname + '/client/views');
 app.set('view engine', 'jade');
+
 //config express to use body-parser
 app.use(express.static(__dirname + '/client'));
 app.use(bodyParser.urlencoded({extended: false}));
+app.use(bodyParser.json());
 
 //global variables
-//var homepage = 'http://tracuunnt.gdt.gov.vn';
 var url = 'http://tracuunnt.gdt.gov.vn/tcnnt/mstdn.jsp';
 var captcha;
 var cookies;
 var count = 0;
-var getCookCapt = true; //to keep run when start
-var readyGet = false;
+var mst;
 
-function cook_capt(callback) {
-  cook.cookies(function(capt, cook, time) {
-    captcha = capt;
-    cookies = cook;
-    readyGet = true;
-    console.log (captcha, cookies);
-    console.log ('It took', time, 'miliseconds to get captcha and cookies');
-    console.log ('Now, it should be READY to serve');
-    console.log ('=======================================================');
-  });  
-}
-
-//keep updating cookies and captcha every timeToReGet
-/*
-setInterval(function() {
-  var now = new Date();
-  //TODO: request to keep server awake and to update captcha and cookies
-  console.log(now.toLocaleString(), ': Send a ping');
-  request(url + '?action=action&mst=0100112846&captcha=' + captcha, function(error, response, body){
-    if (!error) {
-      console.log(response.statusCode);
-    } else {
-      console.log('Connection error, reget the captcha anyway');
-      getCookCapt = true;
-    }
-  });
-  //getCookCapt = true;
-}, timeToReGet);
-*/
-
-//getting cookie and captcha by listening getCookCapt flag
-setInterval(function() {
-  if (getCookCapt) {
-      getCookCapt = false;
-      //prevent getting info while captcha not available
-      //readyGet = false;
-      cook_capt();
-  }
-}, 50);
-
-/*
-app.route('/mst')
-  .get(function(req, res){
-    res.render('index');
-  })
-  .post(function(req,res){
-    captcha = req.body.captcha;
-    cookies = req.body.cookies || cookies;
-    console.log('Getting capcha and cookies');
-    res.render('index');
-  });
-*/
-app.get('/', function(req, res) {
-  res.status(200).send('<h2>Welcome to a better api for tracuumst</h2>');
+app.post('/mst/info', function(req, res){
+  captcha = req.body.captcha;
+  console.log('Getting:', captcha, cookies);
+  res.redirect('/mst/' + mst);
 });
 
 app.get('/mst/:mst', function(req, res){
-  //variables
-  var mst = req.params.mst;
+  //variables and helper functions
+  mst = req.params.mst;
   var startedTime = new Date();
-  console.log('> Received request for', mst, 'from:', req.ip);
+  
+  var get_capt = function(){
+    console.log('> Getting captcha');
+    cook.cookies(function(captchaUrl, cookies_str){
+      cookies = cookies_str;
+      res.status(300).render('index', {captchaUrl:captchaUrl, cookies_str:cookies_str});
+    });
+  };
   
   //json result
   var json = {mst: "", ten: "", diachi: "", thanhpho: "", quan: "", phuong: "", trangthai: "", ketqua:false, captcha:false};
-  var tryInterval;
+  
+  //getting captcha and cookies
+  if (!captcha) {
+    //first running
+    get_capt();
+    
+  } else {
+    console.log('> Received request for', mst, 'from:', req.ip);
+    get_info();
+  }
   
   function get_info () {
     var query = '?action=action&mst=' + mst + '&captcha=';
@@ -94,8 +59,8 @@ app.get('/mst/:mst', function(req, res){
     request(options, function(error, response, body){
 
       function send_res (statusCode, msg) {
-        clearInterval(tryInterval);
-        readyGet = true;
+        //clearInterval(tryInterval);
+        //readyGet = true;
         var finishedTime = new Date();
         var timeSpend = finishedTime - startedTime;
         json.spend = timeSpend;
@@ -106,13 +71,14 @@ app.get('/mst/:mst', function(req, res){
 
       console.log('>> getting company status');
       if(!error && response.statusCode === 200){
-         $ = cheerio.load(body);
+         var $ = cheerio.load(body);
         //make sure ta_border exists
         if ($('.ta_border').length > 0){
           //captcha correct
           console.log('>>> captcha OK');
           json.captcha = true;
-          if ($('.ta_border').find('tr').length > 2) {//having result
+          if ($('.ta_border').find('tr').length > 2) {
+            //having result
             json.ketqua = true;
             var info = $('.ta_border tr').eq(1).find('td');
             json.mst = $(info[1]).find('a').text();
@@ -123,7 +89,6 @@ app.get('/mst/:mst', function(req, res){
             //getting address detail by request with id
             request({uri: url + '?action=action&id=' + json.mst, headers: {'Cookie':cookies }}, function(error, response, body){
               console.log('>>>> Getting address detail');
-              //console.log(response.statusCode);
               if(!error && response.statusCode === 200){
                 $ = cheerio.load(body);
                 json.thanhpho = $('.ta_border').find('tr').eq(4).find('td').eq(1).text();
@@ -137,9 +102,8 @@ app.get('/mst/:mst', function(req, res){
             send_res(200, 'no result');
           }
         } else {
-          readyGet = false;
-          getCookCapt = true;
           console.log('<<< captcha err: trying again >>>');
+          get_capt();
         }
       } else {
         send_res(400, 'conn err');
@@ -147,20 +111,6 @@ app.get('/mst/:mst', function(req, res){
     });
   }
   
-  tryInterval = setInterval(function() {
-    if (readyGet) {
-      readyGet = false;
-      get_info();
-    }
-  }, 50);
-  
-});
-
-app.get('/tracuu/:mst', function(req, res){
-  tracuu.tcmst(req.params.mst, function(data){
-    res.jsonp(data);
-    console.log(req.params.mst, count ++, data.ketqua);
-  });
 });
 
 app.listen(process.env.PORT || '3880');

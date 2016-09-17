@@ -1,9 +1,16 @@
-//TODO: pure javascript
+//no longer needed because captcha is too hard to crack
 (function(){
     //it take lessthan 500 miliseconds to crack
     var internal = {};
 
     exports.crack = internal.crack = function(captcha_name, callback) {
+        /*
+        Because MST has changed the captcha which is very difficult to do the scanning
+        May need to find another way
+        - Showing the captcha
+        - Get captcha by user input
+        */
+        
         var tesseract = require('node-tesseract');
         var fs = require('fs');
         tesseract.process(__dirname + '/' + captcha_name, {'psm':7}, function(err, text) {

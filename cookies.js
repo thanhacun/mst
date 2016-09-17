@@ -1,3 +1,4 @@
+//no longer needed because captcha is too hard to crack!
 (function(){
     var internal = {};
     
@@ -9,6 +10,9 @@
         var cheerio = require('cheerio');
         var fs = require('fs');
         var atob = require('atob');
+        var sys = require('sys');
+        var exec = require('child_process').exec;
+        var child;
         
         //common variables
         var homepage = 'http://tracuunnt.gdt.gov.vn';
@@ -93,6 +97,7 @@
                         }
                         return getImgDimensions($('img'));
                         */
+                        //Captcha is too hard to ocr!
                         var captchaDom = $('img')[0];
                         var canvas = document.createElement('canvas');
                         canvas.width = 130;
@@ -104,14 +109,19 @@
                     }, function(imgBase64) {
 
                         fs.writeFile('captcha.png', atob(imgBase64), 'binary', function(){
-                            ocr.crack('captcha.png', function(text){
-                                if (!text) {
-                                    captChecking = false;
-                                } else {
-                                    console.log(text);
-                                    check_capt(text, console.log);
-                                }
+                            //textcleaner png file
+                            child = exec("./prepare.sh", function(error, stdout, stderr) {
+                               ocr.crack('captcha_touch.png', function(text){
+                                    if (!text) {
+                                        captChecking = false;
+                                    } else {
+                                        console.log(text);
+                                        check_capt(text, console.log);
+                                    }
+                                });
+                               
                             });
+                                    
                         });
 
                     });
@@ -124,7 +134,7 @@
                     var req_options = {uri: check_url, headers: {'Cookie': cookies_str} };
                     request(req_options, function(error, response, body) {
                        if (!error && response.statusCode === 200) {
-                           $ = cheerio.load(body);
+                           var $ = cheerio.load(body);
                            if ($('.ta_border').length > 0) {
                                console.log('Correct captcha, congratulation');
                                captcha = capt;

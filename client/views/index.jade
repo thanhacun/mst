@@ -9,10 +9,11 @@ html(lang="en")
         document.getElementById(formid).submit()
       }
   body
-    h1 Try harder
+    h1 Please provide the captcha code!
     #container.col
-      a#mstdn(href='http://tracuunnt.gdt.gov.vn/tcnnt/mstdn.jsp', target='_blank') Open this link
-      form#info(method='post')
+      //a#mstdn(href='http://tracuunnt.gdt.gov.vn/tcnnt/mstdn.jsp', target='_blank') Open this link
+      form#info(method='post', action='/mst/info')
+        img#captcha(src='#{captchaUrl}')
         input#captcha(type='text', name='captcha', placeholder='captcha value')
-        input#cookies(type='text', name='cookies', placeholder='cookies string')
-        input#submit(type='submit', value='submit', action='submit(info)')
+        //input#cookies(type='text', name='cookies', value='#{cookies_str}')
+        input#submit(type='submit', value='submit')
