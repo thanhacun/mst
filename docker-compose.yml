@@ -1,0 +1,11 @@
+c9_container:
+    image: sapk/cloud9
+    container_name: mst_c9
+    #TODO: name by variable using ${pwd}
+    ports:
+        - "8181:8181"
+        - "8888:8888"
+        # the second port is for exposing container port for running service
+    volumes:
+        - ${pwd}:/workspace
+    command: --auth "admin:admin"

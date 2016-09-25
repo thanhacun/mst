@@ -120,7 +120,8 @@ app.get('/mst/:mst', function(req, res){
   
 });
 
-app.listen(process.env.PORT || '3880');
+app.listen(process.env.PORT || '8888');
+console.log(process.env.PORT || '8888');
 console.log('========================================');
 console.log('Helpers supporting getting data from TCT');
 
